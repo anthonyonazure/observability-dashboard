@@ -1,0 +1,60 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>{{ agent }} — runs</title>
+<style>
+  body { font-family: -apple-system, "Helvetica Neue", Arial, sans-serif; margin: 0; background: #f4f6f9; color: #1a1a1a; }
+  header { background: #0b3d91; color: #fff; padding: 16px 24px; }
+  header h1 { font-size: 16pt; margin: 0; }
+  header a { color: #c5d3ec; text-decoration: none; font-size: 10pt; }
+  main { padding: 24px; max-width: 1200px; margin: 0 auto; }
+  .card { background: #fff; border-radius: 6px; padding: 16px 20px; box-shadow: 0 1px 3px rgba(0,0,0,0.04); margin-bottom: 16px; }
+  table { width: 100%; border-collapse: collapse; font-size: 9.5pt; }
+  th, td { padding: 8px 10px; text-align: left; vertical-align: top; }
+  th { background: #f4f6f9; font-weight: 600; border-bottom: 1px solid #ccc; }
+  tr td { border-bottom: 1px solid #eaeaea; }
+  td.right { text-align: right; }
+  td.center { text-align: center; }
+  .status-tag { display: inline-block; padding: 1px 6px; border-radius: 3px; font-size: 8.5pt; font-weight: 700; }
+  .status-tag.ok { background: #d4edda; color: #155724; }
+  .status-tag.partial { background: #fff3cd; color: #856404; }
+  .status-tag.failed { background: #f8d7da; color: #721c24; }
+  pre { background: #fafafa; border: 1px solid #eaeaea; padding: 6px 8px; font-size: 9pt; border-radius: 4px; white-space: pre-wrap; word-break: break-word; max-width: 360px; }
+</style>
+</head>
+<body>
+
+<header>
+  <a href="/">← All agents</a>
+  <h1>{{ agent }}</h1>
+</header>
+
+<main>
+
+  <div class="card">
+    <h2>Last {{ runs|length }} runs</h2>
+    <table>
+      <thead>
+        <tr><th>Run id</th><th>Started</th><th>Status</th><th>Duration</th><th>Summary</th><th>Metrics</th><th class="right">Cost</th></tr>
+      </thead>
+      <tbody>
+        {% for r in runs %}
+        <tr>
+          <td><code>{{ r.id }}</code></td>
+          <td>{{ r.started_at.strftime('%Y-%m-%d %H:%M') }}</td>
+          <td class="center"><span class="status-tag {{ r.status }}">{{ r.status }}</span></td>
+          <td class="right">{{ r.duration_ms }}ms</td>
+          <td>{{ r.summary }}</td>
+          <td><pre>{{ r.metrics | tojson(indent=2) }}</pre></td>
+          <td class="right">${{ "%.4f"|format(r.cost_usd) }}</td>
+        </tr>
+        {% endfor %}
+      </tbody>
+    </table>
+  </div>
+
+</main>
+
+</body>
+</html>

@@ -1,0 +1,122 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>Agent Observability — last {{ window }}h</title>
+<style>
+  body { font-family: -apple-system, "Helvetica Neue", Arial, sans-serif; margin: 0; background: #f4f6f9; color: #1a1a1a; }
+  header { background: #0b3d91; color: #fff; padding: 16px 24px; }
+  header h1 { font-size: 18pt; margin: 0; font-weight: 600; }
+  header .meta { color: #c5d3ec; font-size: 10pt; margin-top: 4px; }
+  main { padding: 24px; max-width: 1300px; margin: 0 auto; }
+
+  .pillrow { margin-bottom: 16px; }
+  .pill { display: inline-block; padding: 6px 12px; border-radius: 16px; font-weight: 600; font-size: 10pt; margin-right: 8px; }
+  .pill.runs { background: #e7f0fb; color: #0b3d91; }
+  .pill.ok { background: #d4edda; color: #155724; }
+  .pill.cost { background: #fff3cd; color: #856404; }
+
+  .card { background: #fff; border-radius: 6px; padding: 16px 20px; box-shadow: 0 1px 3px rgba(0,0,0,0.04); margin-bottom: 16px; }
+  .card h2 { font-size: 13pt; margin: 0 0 12px; }
+
+  table { width: 100%; border-collapse: collapse; font-size: 9.5pt; }
+  th, td { padding: 8px 10px; text-align: left; vertical-align: top; }
+  th { background: #f4f6f9; font-weight: 600; border-bottom: 1px solid #ccc; }
+  tr td { border-bottom: 1px solid #eaeaea; }
+  td.right { text-align: right; }
+  td.center { text-align: center; }
+  td a { color: #0b3d91; text-decoration: none; font-weight: 600; }
+  td a:hover { text-decoration: underline; }
+
+  .status-tag { display: inline-block; padding: 1px 6px; border-radius: 3px; font-size: 8.5pt; font-weight: 700; }
+  .status-tag.ok { background: #d4edda; color: #155724; }
+  .status-tag.partial { background: #fff3cd; color: #856404; }
+  .status-tag.failed { background: #f8d7da; color: #721c24; }
+
+  .ok-bar { display: inline-block; height: 6px; background: #ddd; width: 80px; border-radius: 3px; vertical-align: middle; }
+  .ok-bar > span { display: inline-block; height: 6px; background: #28a745; border-radius: 3px; }
+
+  .controls { margin-bottom: 16px; }
+  .controls a { display: inline-block; padding: 4px 12px; border: 1px solid #c5d3ec; border-radius: 14px; color: #0b3d91; text-decoration: none; margin-right: 8px; font-size: 9pt; }
+  .controls a.active { background: #0b3d91; color: #fff; border-color: #0b3d91; }
+</style>
+</head>
+<body>
+
+<header>
+  <h1>Agent Observability — last {{ window }}h</h1>
+  <div class="meta">
+    {{ agg.total_runs }} total runs · {{ agg.ok_rate_overall }}% ok · ${{ "%.4f"|format(agg.total_cost_usd) }} total spend
+  </div>
+</header>
+
+<main>
+
+  <div class="controls">
+    {% for w in [24, 168, 720] %}
+    <a href="?window={{ w }}" class="{{ 'active' if window == w else '' }}">last {{ w }}h</a>
+    {% endfor %}
+  </div>
+
+  <div class="pillrow">
+    <span class="pill runs">{{ agg.total_runs }} runs</span>
+    <span class="pill ok">{{ agg.ok_rate_overall }}% ok</span>
+    <span class="pill cost">${{ "%.4f"|format(agg.total_cost_usd) }} spend</span>
+  </div>
+
+  <div class="card">
+    <h2>By agent</h2>
+    <table>
+      <thead>
+        <tr>
+          <th>Agent</th><th class="right">Runs</th><th class="right">OK rate</th>
+          <th class="right">p50</th><th class="right">p95</th>
+          <th class="right">Tokens in</th><th class="right">Tokens out</th>
+          <th class="right">Cost</th>
+        </tr>
+      </thead>
+      <tbody>
+        {% for r in agg.by_agent %}
+        <tr>
+          <td><a href="/agent/{{ r.agent }}">{{ r.agent }}</a></td>
+          <td class="right">{{ r.runs }}</td>
+          <td class="right">
+            <span class="ok-bar"><span style="width: {{ r.ok_rate_pct * 0.8 }}px;"></span></span>
+            {{ r.ok_rate_pct }}%
+          </td>
+          <td class="right">{{ r.p50_ms }}ms</td>
+          <td class="right">{{ r.p95_ms }}ms</td>
+          <td class="right">{{ "{:,}".format(r.tokens_in) }}</td>
+          <td class="right">{{ "{:,}".format(r.tokens_out) }}</td>
+          <td class="right">${{ "%.4f"|format(r.cost_usd) }}</td>
+        </tr>
+        {% endfor %}
+      </tbody>
+    </table>
+  </div>
+
+  <div class="card">
+    <h2>Recent runs</h2>
+    <table>
+      <thead>
+        <tr><th>When</th><th>Agent</th><th>Status</th><th>Duration</th><th>Summary</th><th class="right">Cost</th></tr>
+      </thead>
+      <tbody>
+        {% for r in recent %}
+        <tr>
+          <td>{{ r.started_at.strftime('%m-%d %H:%M') }}</td>
+          <td><a href="/agent/{{ r.agent }}">{{ r.agent }}</a></td>
+          <td class="center"><span class="status-tag {{ r.status }}">{{ r.status }}</span></td>
+          <td class="right">{{ r.duration_ms }}ms</td>
+          <td>{{ r.summary }}</td>
+          <td class="right">${{ "%.4f"|format(r.cost_usd) }}</td>
+        </tr>
+        {% endfor %}
+      </tbody>
+    </table>
+  </div>
+
+</main>
+
+</body>
+</html>
