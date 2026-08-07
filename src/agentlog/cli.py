@@ -49,6 +49,7 @@ def serve(
 @app.command()
 def version():
     from agentlog import __version__
+
     console.print(f"observability-dashboard {__version__}")
 
 

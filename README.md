@@ -51,17 +51,21 @@ agentlog serve               # http://localhost:8090
 import httpx
 from datetime import datetime, timezone
 
-httpx.post("http://your-dashboard:8090/v1/runs", json={
-    "id": run_id,
-    "agent": "partner-onboarding-agent",
-    "started_at": datetime.now(timezone.utc).isoformat(),
-    "duration_ms": 5421,
-    "status": "ok",                 # ok | partial | failed
-    "summary": "provisioned 5 resources, 3-page PDF",
-    "metrics": {"resources_provisioned": 5, "pdf_pages": 3},
-    "cost_usd": 0.024,
-    "tokens_in": 4_120, "tokens_out": 982,
-})
+httpx.post(
+    "http://your-dashboard:8090/v1/runs",
+    json={
+        "id": run_id,
+        "agent": "partner-onboarding-agent",
+        "started_at": datetime.now(timezone.utc).isoformat(),
+        "duration_ms": 5421,
+        "status": "ok",  # ok | partial | failed
+        "summary": "provisioned 5 resources, 3-page PDF",
+        "metrics": {"resources_provisioned": 5, "pdf_pages": 3},
+        "cost_usd": 0.024,
+        "tokens_in": 4_120,
+        "tokens_out": 982,
+    },
+)
 ```
 
 ## Layout

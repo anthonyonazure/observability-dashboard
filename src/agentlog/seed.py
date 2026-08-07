@@ -5,7 +5,7 @@ from __future__ import annotations
 
 import random
 import uuid
-from datetime import datetime, timedelta, timezone
+from datetime import UTC, datetime, timedelta
 
 import structlog
 
@@ -13,7 +13,7 @@ from agentlog.db import AgentRun, init_db, session
 
 log = structlog.get_logger()
 
-NOW = datetime.now(timezone.utc).replace(tzinfo=None)
+NOW = datetime.now(UTC).replace(tzinfo=None)
 
 
 def _hours_ago(h: float) -> datetime:
@@ -38,15 +38,27 @@ def _example_metrics(agent: str) -> dict:
     if agent == "ai-account-manager":
         return {"actions": 5, "delivered_to": ["slack", "teams_channel", "teams_dm"]}
     if agent == "compliance-evidence-agent":
-        return {"controls_total": 10, "controls_passed": 7, "controls_failed": 3, "framework": "soc2"}
+        return {
+            "controls_total": 10,
+            "controls_passed": 7,
+            "controls_failed": 3,
+            "framework": "soc2",
+        }
     if agent == "marketing-automation-agent":
         return {"drafts_created": 5, "all_passed_review": True}
     if agent == "security-questionnaire-responder":
-        return {"items_total": 22, "auto_answered": 16, "needs_review": 6, "avg_confidence": 0.69}
+        return {
+            "items_total": 22,
+            "auto_answered": 16,
+            "needs_review": 6,
+            "avg_confidence": 0.69,
+        }
     if agent == "vciso-assistant":
         return random.choice(
-            [{"mode": "qa", "kb_hits": 2, "risk_hits": 1},
-             {"mode": "board_update", "open_risks": 9, "closed": 1}]
+            [
+                {"mode": "qa", "kb_hits": 2, "risk_hits": 1},
+                {"mode": "board_update", "open_risks": 9, "closed": 1},
+            ]
         )
     if agent == "renewal-forecasting-agent":
         return {"accounts": 12, "total_arr": 1294000, "at_risk": 146791}
@@ -65,7 +77,11 @@ def _summary_for(agent: str, m: dict) -> str:
     if agent == "security-questionnaire-responder":
         return f"{m['auto_answered']}/{m['items_total']} auto-answered, {m['needs_review']} need review"
     if agent == "vciso-assistant":
-        return "monthly board update generated" if m.get("mode") == "board_update" else f"answered (KB:{m.get('kb_hits',0)}, risks:{m.get('risk_hits',0)})"
+        return (
+            "monthly board update generated"
+            if m.get("mode") == "board_update"
+            else f"answered (KB:{m.get('kb_hits', 0)}, risks:{m.get('risk_hits', 0)})"
+        )
     if agent == "renewal-forecasting-agent":
         return f"forecast: ${m['total_arr']:,.0f} ARR, ${m['at_risk']:,.0f} at risk"
     if agent == "pen-test-reporter":
