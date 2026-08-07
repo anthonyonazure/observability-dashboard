@@ -8,7 +8,7 @@ agents-per-day for years before that matters)."""
 from __future__ import annotations
 
 from collections import Counter, defaultdict
-from datetime import datetime, timedelta, timezone
+from datetime import UTC, datetime, timedelta
 from pathlib import Path
 from typing import Any
 
@@ -33,10 +33,15 @@ async def _startup() -> None:
 
 # ---------- Aggregations ----------
 
+
 async def _aggregate(window_hours: int = 24 * 7) -> dict[str, Any]:
-    cutoff = datetime.now(timezone.utc).replace(tzinfo=None) - timedelta(hours=window_hours)
+    cutoff = datetime.now(UTC).replace(tzinfo=None) - timedelta(hours=window_hours)
     async with session() as s:
-        rows = (await s.execute(select(AgentRun).where(AgentRun.started_at >= cutoff))).scalars().all()
+        rows = (
+            (await s.execute(select(AgentRun).where(AgentRun.started_at >= cutoff)))
+            .scalars()
+            .all()
+        )
     runs = list(rows)
     by_agent: dict[str, list[AgentRun]] = defaultdict(list)
     for r in runs:
@@ -47,21 +52,25 @@ async def _aggregate(window_hours: int = 24 * 7) -> dict[str, Any]:
         statuses = Counter(r.status for r in agent_runs)
         cost = sum(r.cost_usd for r in agent_runs)
         durations = sorted(r.duration_ms for r in agent_runs)
-        p50 = durations[len(durations)//2] if durations else 0
-        p95 = durations[max(0, int(len(durations)*0.95) - 1)] if durations else 0
-        per_agent.append({
-            "agent": agent,
-            "runs": len(agent_runs),
-            "ok": statuses.get("ok", 0),
-            "partial": statuses.get("partial", 0),
-            "failed": statuses.get("failed", 0),
-            "ok_rate_pct": round(statuses.get("ok", 0) / max(len(agent_runs), 1) * 100, 1),
-            "cost_usd": round(cost, 4),
-            "p50_ms": p50,
-            "p95_ms": p95,
-            "tokens_in": sum(r.tokens_in for r in agent_runs),
-            "tokens_out": sum(r.tokens_out for r in agent_runs),
-        })
+        p50 = durations[len(durations) // 2] if durations else 0
+        p95 = durations[max(0, int(len(durations) * 0.95) - 1)] if durations else 0
+        per_agent.append(
+            {
+                "agent": agent,
+                "runs": len(agent_runs),
+                "ok": statuses.get("ok", 0),
+                "partial": statuses.get("partial", 0),
+                "failed": statuses.get("failed", 0),
+                "ok_rate_pct": round(
+                    statuses.get("ok", 0) / max(len(agent_runs), 1) * 100, 1
+                ),
+                "cost_usd": round(cost, 4),
+                "p50_ms": p50,
+                "p95_ms": p95,
+                "tokens_in": sum(r.tokens_in for r in agent_runs),
+                "tokens_out": sum(r.tokens_out for r in agent_runs),
+            }
+        )
 
     return {
         "window_hours": window_hours,
@@ -76,18 +85,28 @@ async def _aggregate(window_hours: int = 24 * 7) -> dict[str, Any]:
 
 async def _recent(limit: int = 30) -> list[AgentRun]:
     async with session() as s:
-        rows = (await s.execute(select(AgentRun).order_by(desc(AgentRun.started_at)).limit(limit))).scalars().all()
+        rows = (
+            (
+                await s.execute(
+                    select(AgentRun).order_by(desc(AgentRun.started_at)).limit(limit)
+                )
+            )
+            .scalars()
+            .all()
+        )
     return list(rows)
 
 
 # ---------- HTML routes ----------
+
 
 @app.get("/", response_class=HTMLResponse)
 async def dashboard(request: Request, window: int = 24 * 7):
     agg = await _aggregate(window)
     recent = await _recent(40)
     return templates.TemplateResponse(
-        request, "dashboard.html",
+        request,
+        "dashboard.html",
         {"agg": agg, "recent": recent, "window": window},
     )
 
@@ -95,16 +114,27 @@ async def dashboard(request: Request, window: int = 24 * 7):
 @app.get("/agent/{agent}", response_class=HTMLResponse)
 async def agent_detail(request: Request, agent: str):
     async with session() as s:
-        rows = (await s.execute(
-            select(AgentRun).where(AgentRun.agent == agent).order_by(desc(AgentRun.started_at)).limit(100)
-        )).scalars().all()
+        rows = (
+            (
+                await s.execute(
+                    select(AgentRun)
+                    .where(AgentRun.agent == agent)
+                    .order_by(desc(AgentRun.started_at))
+                    .limit(100)
+                )
+            )
+            .scalars()
+            .all()
+        )
     return templates.TemplateResponse(
-        request, "agent_detail.html",
+        request,
+        "agent_detail.html",
         {"agent": agent, "runs": list(rows)},
     )
 
 
 # ---------- JSON ingest endpoint (for agents to call) ----------
+
 
 class RunIn(BaseModel):
     id: str
@@ -122,13 +152,22 @@ class RunIn(BaseModel):
 @app.post("/v1/runs")
 async def post_run(body: RunIn) -> JSONResponse:
     async with session() as s:
-        s.add(AgentRun(
-            id=body.id, agent=body.agent,
-            started_at=body.started_at.replace(tzinfo=None) if body.started_at.tzinfo else body.started_at,
-            duration_ms=body.duration_ms, status=body.status, summary=body.summary,
-            metrics=body.metrics, cost_usd=body.cost_usd,
-            tokens_in=body.tokens_in, tokens_out=body.tokens_out,
-        ))
+        s.add(
+            AgentRun(
+                id=body.id,
+                agent=body.agent,
+                started_at=body.started_at.replace(tzinfo=None)
+                if body.started_at.tzinfo
+                else body.started_at,
+                duration_ms=body.duration_ms,
+                status=body.status,
+                summary=body.summary,
+                metrics=body.metrics,
+                cost_usd=body.cost_usd,
+                tokens_in=body.tokens_in,
+                tokens_out=body.tokens_out,
+            )
+        )
     return JSONResponse({"ok": True, "id": body.id})
 
 

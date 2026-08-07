@@ -7,7 +7,7 @@ import importlib
 import os
 import tempfile
 import uuid
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 from pathlib import Path
 
 import pytest
@@ -19,8 +19,10 @@ def client():
     tmp = Path(tempfile.mkdtemp()) / "agentlog_test.db"
     os.environ["AGENTLOG_DATABASE_URL"] = f"sqlite+aiosqlite:///{tmp}"
     import agentlog.db
+
     importlib.reload(agentlog.db)
     import agentlog.api
+
     importlib.reload(agentlog.api)
     asyncio.run(agentlog.db.init_db())
     yield TestClient(agentlog.api.app)
@@ -36,13 +38,14 @@ def test_ingest_then_dashboard_shows_run(client):
     body = {
         "id": uuid.uuid4().hex[:10],
         "agent": "test-agent",
-        "started_at": datetime.now(timezone.utc).isoformat(),
+        "started_at": datetime.now(UTC).isoformat(),
         "duration_ms": 1234,
         "status": "ok",
         "summary": "did a thing",
         "metrics": {"foo": "bar"},
         "cost_usd": 0.0123,
-        "tokens_in": 1000, "tokens_out": 200,
+        "tokens_in": 1000,
+        "tokens_out": 200,
     }
     r = client.post("/v1/runs", json=body)
     assert r.status_code == 200, r.text
